@@ -1,0 +1,107 @@
+name: Deploy to Pantheon
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          REACT_APP_EMAILJS_SERVICE_ID: ${{ secrets.REACT_APP_EMAILJS_SERVICE_ID }}
+          REACT_APP_EMAILJS_TEMPLATE_ID: ${{ secrets.REACT_APP_EMAILJS_TEMPLATE_ID }}
+          REACT_APP_EMAILJS_PUBLIC_KEY: ${{ secrets.REACT_APP_EMAILJS_PUBLIC_KEY }}
+
+      # ── Pantheon SSH setup ──────────────────────────────────────────────
+      - name: Configure SSH for Pantheon
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PANTHEON_SSH_PRIVATE_KEY }}" > ~/.ssh/pantheon_key
+          chmod 600 ~/.ssh/pantheon_key
+          ssh-keyscan -p 2222 codeserver.dev.${{ secrets.PANTHEON_SITE_UUID }}.drush.in >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host *.drush.in
+            StrictHostKeyChecking no
+            IdentityFile ~/.ssh/pantheon_key
+            Port 2222
+          EOF
+
+      # ── Install Terminus ────────────────────────────────────────────────
+      - name: Install Terminus
+        run: |
+          curl -L https://github.com/pantheon-systems/terminus/releases/latest/download/terminus.phar -o /usr/local/bin/terminus
+          chmod +x /usr/local/bin/terminus
+          terminus --version
+
+      - name: Authenticate Terminus
+        run: terminus auth:login --machine-token=${{ secrets.PANTHEON_MACHINE_TOKEN }}
+
+      # ── Deploy to Pantheon via git push ─────────────────────────────────
+      - name: Configure git
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Switch Pantheon to git mode
+        run: terminus connection:set ${{ secrets.PANTHEON_SITE_NAME }}.dev git
+
+      - name: Clone Pantheon repo
+        run: |
+          PANTHEON_GIT=$(terminus connection:info ${{ secrets.PANTHEON_SITE_NAME }}.dev --field=git_url)
+          git clone "$PANTHEON_GIT" pantheon-repo
+
+      - name: Sync build to Pantheon repo
+        run: |
+          # Clear existing files (keep .git)
+          find pantheon-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          # Copy build output
+          cp -r build/. pantheon-repo/
+          # Add a .htaccess for React Router (SPA fallback)
+          cat > pantheon-repo/.htaccess <<'HTACCESS'
+          Options -Indexes
+          RewriteEngine On
+          RewriteBase /
+          RewriteRule ^index\.html$ - [L]
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
+          RewriteRule . /index.html [L]
+          HTACCESS
+
+      - name: Commit and push to Pantheon
+        run: |
+          cd pantheon-repo
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+          else
+            git commit -m "Deploy from GitHub Actions — ${{ github.sha }}"
+            git push origin master
+          fi
+
+      # ── Post-deploy ──────────────────────────────────────────────────────
+      - name: Clear Pantheon cache
+        run: terminus env:clear-cache ${{ secrets.PANTHEON_SITE_NAME }}.dev
+
+      - name: Print live URL
+        run: |
+          echo "✅ Deployed to Pantheon Dev:"
+          terminus env:view ${{ secrets.PANTHEON_SITE_NAME }}.dev --print
