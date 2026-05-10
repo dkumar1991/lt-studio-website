@@ -1,0 +1,114 @@
+.cta-section {
+  padding: 60px 0;
+  background: var(--dark-2);
+}
+
+.cta-card {
+  background: linear-gradient(135deg, rgba(108, 99, 255, 0.12), rgba(255, 101, 132, 0.08));
+  border: 1px solid rgba(108, 99, 255, 0.25);
+  border-radius: 24px;
+  padding: 48px 64px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.cta-glow {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  height: 300px;
+  background: radial-gradient(ellipse, rgba(108, 99, 255, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cta-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  opacity: 0.15;
+}
+
+.cta-orb-1 {
+  width: 300px;
+  height: 300px;
+  background: var(--primary);
+  top: -80px;
+  left: -60px;
+  animation: orbFloat 6s ease-in-out infinite;
+}
+
+.cta-orb-2 {
+  width: 200px;
+  height: 200px;
+  background: var(--accent);
+  bottom: -60px;
+  right: -40px;
+  animation: orbFloat 8s ease-in-out infinite reverse;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(20px, -15px) scale(1.05); }
+  66%       { transform: translate(-10px, 10px) scale(0.97); }
+}
+
+.cta-content {
+  position: relative;
+  z-index: 1;
+}
+
+.cta-card h2 {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 16px;
+}
+
+.cta-card h2 span {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cta-card p {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.cta-checks {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+
+.cta-checks span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.cta-checks svg {
+  color: #43e097;
+}
+
+.cta-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .cta-card { padding: 48px 28px; }
+  .cta-checks { gap: 12px; }
+}
